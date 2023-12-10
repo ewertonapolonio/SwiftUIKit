@@ -36,6 +36,7 @@ public struct CurrencyTextField: UIViewRepresentable {
     
     private var onReturn: () -> Void
     private var onEditingChanged: (Bool) -> Void
+    private var currentLocale: Locale
     
     @Environment(\.layoutDirection) private var layoutDirection: LayoutDirection
     @Environment(\.font) private var swiftUIfont: Font?
@@ -60,6 +61,7 @@ public struct CurrencyTextField: UIViewRepresentable {
         isSecure: Bool = false,
         isUserInteractionEnabled: Bool = true,
         clearsOnBeginEditing: Bool = false,
+        currentLocale: Locale = Locale.current,
         onReturn: @escaping () -> Void = {},
         onEditingChanged: @escaping (Bool) -> Void = { _ in }
     ) {
@@ -83,6 +85,7 @@ public struct CurrencyTextField: UIViewRepresentable {
         self.isSecure = isSecure
         self.isUserInteractionEnabled = isUserInteractionEnabled
         self.clearsOnBeginEditing = clearsOnBeginEditing
+        self.currentLocale = currentLocale
         self.onReturn = onReturn
         self.onEditingChanged = onEditingChanged
     }
@@ -174,7 +177,7 @@ public struct CurrencyTextField: UIViewRepresentable {
     }
     
     public func makeCoordinator() -> CurrencyTextField.Coordinator {
-        Coordinator(value: $value, isResponder: self.isResponder, alwaysShowFractions: self.alwaysShowFractions, numberOfDecimalPlaces: self.numberOfDecimalPlaces, currencySymbol: self.currencySymbol, onReturn: self.onReturn){ flag in
+        Coordinator(value: $value, isResponder: isResponder, alwaysShowFractions: alwaysShowFractions, numberOfDecimalPlaces: numberOfDecimalPlaces, currencySymbol: currencySymbol, currentLocale: currentLocale, onReturn: onReturn){ flag in
             self.onEditingChanged(flag)
         }
     }
@@ -213,6 +216,7 @@ public struct CurrencyTextField: UIViewRepresentable {
         private var alwaysShowFractions: Bool
         private var numberOfDecimalPlaces: Int
         private var currencySymbol: String?
+        private var currentLocale: Locale
         
         var internalValue: Double?
         var onEditingChanged: (Bool)->()
@@ -223,6 +227,7 @@ public struct CurrencyTextField: UIViewRepresentable {
              alwaysShowFractions: Bool,
              numberOfDecimalPlaces: Int,
              currencySymbol: String?,
+             currentLocale: Locale,
              onReturn: @escaping () -> Void = {},
              onEditingChanged: @escaping (Bool) -> Void = { _ in }
         ) {
@@ -233,6 +238,7 @@ public struct CurrencyTextField: UIViewRepresentable {
             self.alwaysShowFractions = alwaysShowFractions
             self.numberOfDecimalPlaces = numberOfDecimalPlaces
             self.currencySymbol = currencySymbol
+            self.currentLocale = currentLocale
             self.onReturn = onReturn
             self.onEditingChanged = onEditingChanged
         }
@@ -242,7 +248,7 @@ public struct CurrencyTextField: UIViewRepresentable {
             let originalText = textField.text
             let text = textField.text as NSString?
             let newValue = text?.replacingCharacters(in: range, with: string)
-            let display = newValue?.currencyFormat(decimalPlaces: self.numberOfDecimalPlaces, currencySymbol: self.currencySymbol)
+            let display = newValue?.currencyFormat(locale: currentLocale, decimalPlaces: self.numberOfDecimalPlaces, currencySymbol: currencySymbol)
             
             // validate change
             if !shouldAllowChange(oldValue: textField.text ?? "", newValue: newValue ?? "") {
@@ -250,7 +256,7 @@ public struct CurrencyTextField: UIViewRepresentable {
             }
             
             // update binding variable
-            self.value = newValue?.double ?? 0
+            self.value = newValue?.double(locale: currentLocale) ?? 0
             self.internalValue = value
             
             // don't move cursor if nothing changed (i.e. entered invalid values)
@@ -299,17 +305,17 @@ public struct CurrencyTextField: UIViewRepresentable {
         
         func shouldAllowChange(oldValue: String, newValue: String) -> Bool {
             // return if already has decimal
-            if newValue.numberOfDecimalPoints > 1 {
+            if newValue.numberOfDecimalPoints(locale: currentLocale) > 1 {
                 return false
             }
             
             // limits integers length
-            if newValue.integers.count > 9 {
+            if newValue.integers(locale: currentLocale).count > 9 {
                 return false
             }
             
             // limits fractions length
-            if newValue.fractions?.count ?? 0 > self.numberOfDecimalPlaces {
+            if newValue.fractions(locale: currentLocale)?.count ?? 0 > self.numberOfDecimalPlaces {
                 return false
             }
             
@@ -350,37 +356,37 @@ public struct CurrencyTextField: UIViewRepresentable {
 
 fileprivate extension String {
     
-    var numberOfDecimalPoints: Int {
-        let tok = components(separatedBy: Locale.current.decimalSeparator ?? ".")
-        return tok.count - 1
-    }
-    
-    // all numbers including fractions
-    var decimals: String {
-        return components(separatedBy: CharacterSet(charactersIn: "0123456789" + (Locale.current.decimalSeparator ?? ".")).inverted).joined()
-    }
-    
     // just numbers
     var numbers: String {
         return components(separatedBy: CharacterSet(charactersIn: "0123456789").inverted).joined()
     }
     
-    var integers: String {
-        return decimals.components(separatedBy: Locale.current.decimalSeparator ?? ".")[0]
+    func numberOfDecimalPoints(locale: Locale) -> Int {
+        let tok = components(separatedBy: locale.decimalSeparator ?? ".")
+        return tok.count - 1
     }
     
-    var fractions: String? {
-        let split = decimals.components(separatedBy: Locale.current.decimalSeparator ?? ".")
+    // all numbers including fractions
+    private func decimals(locale: Locale) -> String {
+        return components(separatedBy: CharacterSet(charactersIn: "0123456789" + (locale.decimalSeparator ?? ".")).inverted).joined()
+    }
+    
+    func integers(locale: Locale) -> String {
+        return decimals(locale: locale).components(separatedBy: locale.decimalSeparator ?? ".")[0]
+    }
+    
+    func fractions(locale: Locale) -> String? {
+        let split = decimals(locale: locale).components(separatedBy: locale.decimalSeparator ?? ".")
         if split.count == 2 {
             return split[1]
         }
         return nil
     }
     
-    var double: Double? {
+    func double(locale: Locale) -> Double? {
         // uses decimals to get all numerical characters
         // then calls Double on the string
-        var d = decimals
+        var d = decimals(locale: locale)
         if d.count == 0 {
             return nil
         }
@@ -390,19 +396,19 @@ fileprivate extension String {
     
     // args:
     // decimalPlaces - the max number of decimal places
-    func currencyFormat(decimalPlaces: Int? = nil, currencySymbol: String? = nil) -> String? {
+    func currencyFormat(locale: Locale, decimalPlaces: Int? = nil, currencySymbol: String? = nil) -> String? {
         // uses self.double
         // logic for varying the number of fraction digits
-        guard let double = double else {
+        guard let double = double(locale: locale) else {
             return nil
         }
         
         let formatter = Formatter.currency
         
         // if has fractions, show fractions
-        if fractions != nil {
+        if let fractions = fractions(locale: locale)  {
             // the number of decimal points in the string
-            let fractionDigits = fractions?.count ?? 0
+            let fractionDigits = fractions.count 
             // limited to the decimalPlaces specified in the argument
             formatter.minimumFractionDigits = min(fractionDigits, decimalPlaces != nil ? decimalPlaces! : 2)
             formatter.maximumFractionDigits = min(fractionDigits, decimalPlaces != nil ? decimalPlaces! : 2)
@@ -411,7 +417,7 @@ fileprivate extension String {
             
             // show dot if exists
             if let formatted = formatted, fractionDigits == 0 {
-                return "\(formatted)" + (Locale.current.decimalSeparator ?? ".")
+                return "\(formatted)" + (locale.decimalSeparator ?? ".")
             }
             
             return formatted

@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -313,7 +313,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"SwiftUIKitExampleApp/Preview Content\"";
-				DEVELOPMENT_TEAM = W6WL4SP646;
+				DEVELOPMENT_TEAM = ZFFBJVL857;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SwiftUIKitExampleApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -333,7 +333,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"SwiftUIKitExampleApp/Preview Content\"";
-				DEVELOPMENT_TEAM = W6WL4SP646;
+				DEVELOPMENT_TEAM = ZFFBJVL857;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SwiftUIKitExampleApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
